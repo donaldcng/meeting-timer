@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meeting Timer - Professional Meeting Facilitator</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVldGluZyBUaW1lciIsInNob3J0X25hbWUiOiJUaW1lciIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwic3RhcnRfdXJsIjoiLyIsInRoZW1lX2NvbG9yIjoiIzI1NjNlYiIsImJhY2tncm91bmRfY29sb3IiOiIjZjhmYWZjIiwiZWRnZV9zaWRlX3BhbmVsIjp7InByZWZlcnJlZF93aWR0aCI6Mzc2fX0=">
 </head>
-<body>
+<body data-theme="professional-blue" data-font-size="medium">
     <div class="app">
-        <!-- Header -->
+        <!-- Header with Navigation -->
         <header class="app-header">
             <div class="container">
                 <div class="flex items-center justify-between">
@@ -17,6 +18,13 @@
                         <span id="current-time" class="current-time"></span>
                     </div>
                 </div>
+                <!-- Tab Navigation -->
+                <nav class="tab-navigation">
+                    <button id="tab-setup" class="tab-button active" data-view="setup">Setup</button>
+                    <button id="tab-timer" class="tab-button" data-view="timer">Timer</button>
+                    <button id="tab-settings" class="tab-button" data-view="settings">Settings</button>
+                    <button id="tab-summary" class="tab-button" data-view="summary">Summary</button>
+                </nav>
             </div>
         </header>
 
@@ -27,6 +35,12 @@
                     <div class="setup-header">
                         <h2>Setup Meeting Agenda</h2>
                         <p class="text-secondary">Add agenda items with estimated times to get started</p>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="quick-actions">
+                        <button id="load-template-btn" class="btn btn--outline">Load Template</button>
+                        <button id="import-agenda-btn" class="btn btn--outline">Import Agenda</button>
                     </div>
 
                     <!-- Add Agenda Item Form -->
@@ -68,7 +82,8 @@
                         </div>
 
                         <div class="setup-actions">
-                            <button id="confirm-agenda" class="btn btn--primary btn--lg btn--full-width" disabled>
+                            <button id="export-agenda-btn" class="btn btn--secondary">Export Agenda</button>
+                            <button id="confirm-agenda" class="btn btn--primary btn--lg" disabled>
                                 Start Meeting Timer
                             </button>
                         </div>
@@ -115,7 +130,7 @@
                         </div>
                     </div>
 
-                    <!-- Overtime Section (Hidden by default) -->
+                    <!-- Overtime Section -->
                     <div id="overtime-section" class="overtime-section hidden">
                         <div class="card">
                             <div class="card__body">
@@ -134,15 +149,127 @@
                                     <label for="overtime-reason" class="form-label">Reason for Overtime</label>
                                     <select id="overtime-reason" class="form-control">
                                         <option value="">Select reason...</option>
-                                        <option value="deeper-discussion">Requires deeper discussion</option>
-                                        <option value="new-issues">New issues discovered</option>
-                                        <option value="stakeholder-input">Need stakeholder input</option>
-                                        <option value="technical">Technical complexities</option>
-                                        <option value="resources">Resource constraints</option>
-                                        <option value="timeline">Timeline concerns</option>
+                                        <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
                                 <button id="save-overtime-notes" class="btn btn--primary">Save Notes</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" class="view hidden">
+            <div class="container">
+                <div class="settings-container">
+                    <div class="settings-header">
+                        <h2>Settings</h2>
+                        <p class="text-secondary">Customize your meeting timer experience</p>
+                    </div>
+
+                    <!-- Appearance Settings -->
+                    <div class="card settings-section">
+                        <div class="card__body">
+                            <h3>Appearance</h3>
+                            <div class="settings-grid">
+                                <div class="form-group">
+                                    <label for="theme-select" class="form-label">Color Theme</label>
+                                    <select id="theme-select" class="form-control">
+                                        <option value="professional-blue">Professional Blue</option>
+                                        <option value="green-nature">Green Nature</option>
+                                        <option value="purple-corporate">Purple Corporate</option>
+                                        <option value="orange-energy">Orange Energy</option>
+                                        <option value="dark-mode">Dark Mode</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="font-size-select" class="form-label">Font Size</label>
+                                    <select id="font-size-select" class="form-control">
+                                        <option value="small">Small (14px)</option>
+                                        <option value="medium">Medium (16px)</option>
+                                        <option value="large">Large (18px)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Team Members Settings -->
+                    <div class="card settings-section">
+                        <div class="card__body">
+                            <h3>Team Members</h3>
+                            <div class="settings-actions">
+                                <button id="import-team-btn" class="btn btn--outline btn--sm">Import JSON</button>
+                                <button id="export-team-btn" class="btn btn--outline btn--sm">Export JSON</button>
+                            </div>
+                            
+                            <div class="add-member-form">
+                                <div class="form-group">
+                                    <input type="text" id="new-member-name" class="form-control" placeholder="Enter team member name">
+                                    <button id="add-member-btn" class="btn btn--primary btn--sm">Add</button>
+                                </div>
+                            </div>
+
+                            <div id="team-members-list" class="members-list">
+                                <!-- Team members will be listed here -->
+                            </div>
+
+                            <div class="drag-drop-area" id="team-drop-area">
+                                <p>Drop JSON file here or click Import JSON</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Overtime Reasons Settings -->
+                    <div class="card settings-section">
+                        <div class="card__body">
+                            <h3>Overtime Reasons</h3>
+                            <div class="settings-actions">
+                                <button id="import-reasons-btn" class="btn btn--outline btn--sm">Import JSON</button>
+                                <button id="export-reasons-btn" class="btn btn--outline btn--sm">Export JSON</button>
+                            </div>
+                            
+                            <div class="add-reason-form">
+                                <div class="form-group">
+                                    <input type="text" id="new-reason-text" class="form-control" placeholder="Enter overtime reason">
+                                    <button id="add-reason-btn" class="btn btn--primary btn--sm">Add</button>
+                                </div>
+                            </div>
+
+                            <div id="overtime-reasons-list" class="reasons-list">
+                                <!-- Overtime reasons will be listed here -->
+                            </div>
+
+                            <div class="drag-drop-area" id="reasons-drop-area">
+                                <p>Drop JSON file here or click Import JSON</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Template Management -->
+                    <div class="card settings-section">
+                        <div class="card__body">
+                            <h3>Agenda Templates</h3>
+                            <div class="settings-actions">
+                                <button id="save-template-btn" class="btn btn--outline btn--sm">Save Current as Template</button>
+                            </div>
+                            
+                            <div id="templates-list" class="templates-list">
+                                <!-- Templates will be listed here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Management -->
+                    <div class="card settings-section">
+                        <div class="card__body">
+                            <h3>Data Management</h3>
+                            <div class="settings-actions">
+                                <button id="clear-data-btn" class="btn btn--outline btn--sm">Clear All Data</button>
+                                <button id="backup-data-btn" class="btn btn--primary btn--sm">Backup Settings</button>
+                                <button id="restore-data-btn" class="btn btn--outline btn--sm">Restore Settings</button>
                             </div>
                         </div>
                     </div>
@@ -212,6 +339,42 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modals -->
+        <div id="template-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Load Agenda Template</h3>
+                    <button id="close-template-modal" class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="template-options">
+                        <!-- Template options will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="recovery-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Session Recovery</h3>
+                </div>
+                <div class="modal-body">
+                    <p>A previous session was detected. Would you like to recover your meeting progress?</p>
+                    <div class="modal-actions">
+                        <button id="recover-session-btn" class="btn btn--primary">Recover Session</button>
+                        <button id="start-fresh-btn" class="btn btn--outline">Start Fresh</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden file inputs -->
+        <input type="file" id="agenda-file-input" accept=".json" style="display: none;">
+        <input type="file" id="team-file-input" accept=".json" style="display: none;">
+        <input type="file" id="reasons-file-input" accept=".json" style="display: none;">
+        <input type="file" id="backup-file-input" accept=".json" style="display: none;">
     </div>
 
     <script src="app.js"></script>
