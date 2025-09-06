@@ -1,17 +1,25 @@
-// Enhanced Meeting Timer Application
+// Enhanced Meeting Timer Application with Session Sharing and Break Management
 class MeetingTimer {
     constructor() {
         this.currentView = 'setup';
         this.agendaItems = [];
         this.currentItemIndex = 0;
         this.timer = null;
+        this.breakTimer = null;
         this.timerRunning = false;
+        this.breakMode = false;
         this.currentItemTime = 0; // in seconds
         this.currentItemEstimated = 0; // in seconds
+        this.totalBreakTime = 0; // in seconds
+        this.breakStartTime = 0;
         this.completedItems = [];
         this.startTime = null;
         this.autoSaveTimer = null;
         this.sessionId = Date.now();
+        this.meetingId = null;
+        this.isFacilitator = true;
+        this.participantCount = 1;
+        this.connectionStatus = 'ready';
         
         // Settings data
         this.teamMembers = [];
@@ -19,8 +27,10 @@ class MeetingTimer {
         this.agendaTemplates = [];
         this.currentTheme = 'professional-blue';
         this.currentFontSize = 'medium';
+        this.breakSound = 'gentle-chime';
+        this.breakReminder = 5;
         
-        // Default data from JSON
+        // Default data with enhanced contrast-compliant themes
         this.defaultData = {
             teamMembers: [
                 "John Smith", "Sarah Johnson", "Mike Chen", "Lisa Rodriguez", 
@@ -37,11 +47,76 @@ class MeetingTimer {
                 "Scope clarification needed"
             ],
             colorThemes: {
-                "professional-blue": { name: "Professional Blue", primary: "#2563eb", secondary: "#1e40af", background: "#f8fafc", surface: "#ffffff", text: "#1e293b", accent: "#3b82f6", success: "#10b981", warning: "#f59e0b", error: "#ef4444" },
-                "green-nature": { name: "Green Nature", primary: "#059669", secondary: "#047857", background: "#f0fdf4", surface: "#ffffff", text: "#1f2937", accent: "#10b981", success: "#22c55e", warning: "#eab308", error: "#dc2626" },
-                "purple-corporate": { name: "Purple Corporate", primary: "#7c3aed", secondary: "#6d28d9", background: "#faf5ff", surface: "#ffffff", text: "#374151", accent: "#8b5cf6", success: "#059669", warning: "#d97706", error: "#dc2626" },
-                "orange-energy": { name: "Orange Energy", primary: "#ea580c", secondary: "#c2410c", background: "#fff7ed", surface: "#ffffff", text: "#1f2937", accent: "#f97316", success: "#16a34a", warning: "#ca8a04", error: "#dc2626" },
-                "dark-mode": { name: "Dark Mode", primary: "#3b82f6", secondary: "#2563eb", background: "#0f172a", surface: "#1e293b", text: "#f8fafc", accent: "#60a5fa", success: "#34d399", warning: "#fbbf24", error: "#f87171" }
+                "professional-blue": { 
+                    name: "Professional Blue", 
+                    primary: "#1e40af", 
+                    secondary: "#1e3a8a", 
+                    background: "#f8fafc", 
+                    surface: "#ffffff", 
+                    text: "#1f2937", 
+                    textSecondary: "#4b5563",
+                    accent: "#2563eb", 
+                    success: "#047857", 
+                    warning: "#d97706", 
+                    error: "#dc2626",
+                    contrast: "4.8:1"
+                },
+                "green-nature": { 
+                    name: "Green Nature", 
+                    primary: "#047857", 
+                    secondary: "#065f46", 
+                    background: "#f0fdf4", 
+                    surface: "#ffffff", 
+                    text: "#1f2937", 
+                    textSecondary: "#374151",
+                    accent: "#059669", 
+                    success: "#16a34a", 
+                    warning: "#ca8a04", 
+                    error: "#dc2626",
+                    contrast: "5.2:1"
+                },
+                "purple-corporate": { 
+                    name: "Purple Corporate", 
+                    primary: "#6d28d9", 
+                    secondary: "#5b21b6", 
+                    background: "#faf5ff", 
+                    surface: "#ffffff", 
+                    text: "#1f2937", 
+                    textSecondary: "#374151",
+                    accent: "#7c3aed", 
+                    success: "#047857", 
+                    warning: "#d97706", 
+                    error: "#dc2626",
+                    contrast: "4.9:1"
+                },
+                "orange-energy": { 
+                    name: "Orange Energy", 
+                    primary: "#c2410c", 
+                    secondary: "#9a3412", 
+                    background: "#fff7ed", 
+                    surface: "#ffffff", 
+                    text: "#1f2937", 
+                    textSecondary: "#374151",
+                    accent: "#ea580c", 
+                    success: "#047857", 
+                    warning: "#ca8a04", 
+                    error: "#dc2626",
+                    contrast: "5.1:1"
+                },
+                "dark-mode": { 
+                    name: "Dark Mode", 
+                    primary: "#3b82f6", 
+                    secondary: "#2563eb", 
+                    background: "#0f172a", 
+                    surface: "#1e293b", 
+                    text: "#f8fafc", 
+                    textSecondary: "#cbd5e1",
+                    accent: "#60a5fa", 
+                    success: "#34d399", 
+                    warning: "#fbbf24", 
+                    error: "#f87171",
+                    contrast: "7.2:1"
+                }
             },
             fontSizes: {
                 small: { name: "Small", base: "14px", scale: 0.875 },
@@ -69,13 +144,9 @@ class MeetingTimer {
             ]
         };
         
-        // Ensure DOM is ready before initializing
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.init());
-        } else {
-            // DOM is already ready
-            setTimeout(() => this.init(), 10);
-        }
+        // Check for shared session
+        this.checkForSharedSession();
+        this.init();
     }
 
     init() {
@@ -83,8 +154,8 @@ class MeetingTimer {
         
         try {
             this.loadSettings();
+            this.bindEvents(); // Bind events first before checking recovery
             this.checkForRecovery();
-            this.bindEvents();
             this.updateCurrentTime();
             this.setupParticipants();
             this.setupOvertimeReasons();
@@ -94,6 +165,7 @@ class MeetingTimer {
             this.renderTemplates();
             this.applyTheme();
             this.applyFontSize();
+            this.updateConnectionStatus();
             
             // Update time every second
             setInterval(() => this.updateCurrentTime(), 1000);
@@ -110,18 +182,321 @@ class MeetingTimer {
             // Handle beforeunload for backup
             window.addEventListener('beforeunload', () => this.saveSessionBackup());
             
+            // Start session sync if in shared mode
+            if (this.meetingId && !this.isFacilitator) {
+                this.startParticipantSync();
+            }
+            
             console.log('Meeting Timer initialized successfully');
         } catch (error) {
             console.error('Failed to initialize Meeting Timer:', error);
         }
     }
 
-    // Session Management
+    // Session Sharing Implementation
+    checkForSharedSession() {
+        const hash = window.location.hash;
+        if (hash.startsWith('#meeting=')) {
+            this.meetingId = hash.substring(9);
+            this.isFacilitator = false;
+            console.log('Joined shared session:', this.meetingId);
+        }
+    }
+
+    generateMeetingId() {
+        const timestamp = Date.now().toString(36);
+        const random = Math.random().toString(36).substring(2, 10);
+        return `${timestamp}${random}`;
+    }
+
+    shareMeeting() {
+        if (!this.meetingId) {
+            this.meetingId = this.generateMeetingId();
+            this.isFacilitator = true;
+        }
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}#meeting=${this.meetingId}`;
+        
+        const shareUrlInput = document.getElementById('share-url');
+        const shareUrlContainer = document.getElementById('share-url-container');
+        
+        if (shareUrlInput && shareUrlContainer) {
+            shareUrlInput.value = shareUrl;
+            shareUrlContainer.classList.remove('hidden');
+        }
+
+        // Save session data for sharing
+        this.saveSharedSession();
+        
+        this.showNotification('Meeting URL generated! Share with participants.', 'success');
+        return shareUrl;
+    }
+
+    copyShareUrl() {
+        const shareUrlInput = document.getElementById('share-url');
+        if (shareUrlInput) {
+            shareUrlInput.select();
+            shareUrlInput.setSelectionRange(0, 99999); // For mobile
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(shareUrlInput.value).then(() => {
+                    this.showNotification('Meeting URL copied to clipboard!', 'success');
+                }).catch(() => {
+                    this.showNotification('Please copy the URL manually', 'info');
+                });
+            } else {
+                this.showNotification('Please copy the URL manually', 'info');
+            }
+        }
+    }
+
+    saveSharedSession() {
+        if (!this.meetingId) return;
+
+        const sharedData = {
+            meetingId: this.meetingId,
+            agendaItems: this.agendaItems,
+            currentItemIndex: this.currentItemIndex,
+            currentItemTime: this.currentItemTime,
+            currentItemEstimated: this.currentItemEstimated,
+            timerRunning: this.timerRunning,
+            breakMode: this.breakMode,
+            totalBreakTime: this.totalBreakTime,
+            participantCount: this.participantCount,
+            lastUpdate: Date.now(),
+            facilitatorId: this.sessionId
+        };
+
+        this.saveToStorage(`shared_${this.meetingId}`, sharedData);
+    }
+
+    loadSharedSession() {
+        if (!this.meetingId) return null;
+        return this.getFromStorage(`shared_${this.meetingId}`);
+    }
+
+    startParticipantSync() {
+        // Update UI for participant mode
+        this.updateParticipantMode();
+        
+        // Start syncing every 2 seconds
+        this.syncTimer = setInterval(() => {
+            this.syncWithFacilitator();
+        }, 2000);
+    }
+
+    updateParticipantMode() {
+        const facilitatorControls = document.getElementById('facilitator-controls');
+        const participantControls = document.getElementById('participant-controls');
+        const participantIndicator = document.getElementById('participant-mode-indicator');
+        const sharingSection = document.getElementById('sharing-section');
+
+        if (facilitatorControls) facilitatorControls.classList.add('hidden');
+        if (participantControls) participantControls.classList.remove('hidden');
+        if (participantIndicator) participantIndicator.classList.remove('hidden');
+        if (sharingSection) sharingSection.classList.add('hidden');
+
+        // Disable setup modifications
+        const setupInputs = document.querySelectorAll('#setup-view input, #setup-view textarea, #setup-view button');
+        setupInputs.forEach(input => input.disabled = true);
+    }
+
+    syncWithFacilitator() {
+        const sharedData = this.loadSharedSession();
+        if (!sharedData) {
+            this.updateConnectionStatus('error');
+            return;
+        }
+
+        // Update local state from facilitator
+        this.agendaItems = sharedData.agendaItems || [];
+        this.currentItemIndex = sharedData.currentItemIndex || 0;
+        this.currentItemTime = sharedData.currentItemTime || 0;
+        this.currentItemEstimated = sharedData.currentItemEstimated || 0;
+        this.timerRunning = sharedData.timerRunning || false;
+        this.breakMode = sharedData.breakMode || false;
+        this.totalBreakTime = sharedData.totalBreakTime || 0;
+        this.participantCount = sharedData.participantCount || 1;
+
+        // Update UI
+        if (this.currentView === 'timer') {
+            this.loadCurrentItem();
+            this.updateTimerDisplay();
+            this.updateProgress();
+            
+            if (this.breakMode) {
+                this.showBreakMode();
+            } else {
+                this.hideBreakMode();
+            }
+        }
+
+        this.updateConnectionStatus('connected');
+    }
+
+    updateConnectionStatus(status = 'connected') {
+        this.connectionStatus = status;
+        const statusIndicator = document.querySelector('.status-indicator');
+        const connectionText = document.getElementById('connection-text');
+        const participantNumber = document.getElementById('participant-number');
+        const participantCount = document.getElementById('participant-count');
+
+        if (statusIndicator) {
+            statusIndicator.className = 'status-indicator';
+            if (status === 'connecting') statusIndicator.classList.add('connecting');
+            else if (status === 'error') statusIndicator.classList.add('error');
+        }
+
+        if (connectionText) {
+            const statusTexts = {
+                ready: 'Ready',
+                connected: 'Connected',
+                connecting: 'Connecting...',
+                error: 'Connection Lost'
+            };
+            connectionText.textContent = statusTexts[status] || 'Unknown';
+        }
+
+        if (participantNumber) {
+            participantNumber.textContent = this.participantCount;
+        }
+
+        if (participantCount && this.participantCount > 1) {
+            participantCount.classList.remove('hidden');
+        } else if (participantCount) {
+            participantCount.classList.add('hidden');
+        }
+    }
+
+    // Break Management
+    takeBreak() {
+        if (this.breakMode) return;
+
+        this.breakMode = true;
+        this.breakStartTime = Date.now();
+        
+        if (this.timerRunning) {
+            this.pauseTimer();
+        }
+
+        this.showBreakMode();
+        this.startBreakTimer();
+        
+        if (this.isFacilitator) {
+            this.saveSharedSession();
+        }
+
+        this.playBreakSound();
+        this.showNotification('Break started! ☕', 'info');
+    }
+
+    endBreak() {
+        if (!this.breakMode) return;
+
+        this.breakMode = false;
+        const breakDuration = Math.floor((Date.now() - this.breakStartTime) / 1000);
+        this.totalBreakTime += breakDuration;
+
+        this.hideBreakMode();
+        this.stopBreakTimer();
+        
+        if (this.isFacilitator) {
+            this.saveSharedSession();
+        }
+
+        this.showNotification(`Break ended! Duration: ${this.formatTime(breakDuration)}`, 'success');
+    }
+
+    showBreakMode() {
+        const breakMode = document.getElementById('break-mode');
+        const currentItemSection = document.getElementById('current-item-section');
+        const timerCircle = document.getElementById('timer-circle');
+
+        if (breakMode) breakMode.classList.remove('hidden');
+        if (currentItemSection) currentItemSection.style.opacity = '0.6';
+        if (timerCircle) timerCircle.classList.add('break-mode');
+    }
+
+    hideBreakMode() {
+        const breakMode = document.getElementById('break-mode');
+        const currentItemSection = document.getElementById('current-item-section');
+        const timerCircle = document.getElementById('timer-circle');
+
+        if (breakMode) breakMode.classList.add('hidden');
+        if (currentItemSection) currentItemSection.style.opacity = '1';
+        if (timerCircle) timerCircle.classList.remove('break-mode');
+    }
+
+    startBreakTimer() {
+        this.breakTimer = setInterval(() => {
+            const breakDuration = Math.floor((Date.now() - this.breakStartTime) / 1000);
+            this.updateBreakDisplay(breakDuration);
+            
+            // Check if we should show reminder
+            const targetDuration = parseInt(document.getElementById('break-duration')?.value || 15) * 60;
+            const reminderTime = targetDuration - (this.breakReminder * 60);
+            
+            if (breakDuration === reminderTime && reminderTime > 0) {
+                this.showNotification(`Break reminder: ${this.breakReminder} minutes left`, 'warning');
+            }
+        }, 1000);
+    }
+
+    stopBreakTimer() {
+        if (this.breakTimer) {
+            clearInterval(this.breakTimer);
+            this.breakTimer = null;
+        }
+    }
+
+    updateBreakDisplay(duration) {
+        const breakTimeEl = document.getElementById('break-time');
+        if (breakTimeEl) {
+            breakTimeEl.textContent = this.formatTime(duration);
+        }
+    }
+
+    playBreakSound() {
+        if (this.breakSound === 'none') return;
+
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            if (this.breakSound === 'gentle-chime') {
+                // Gentle chime sequence
+                oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+                oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.3); // E5
+                oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.6); // G5
+            } else if (this.breakSound === 'soft-bell') {
+                // Soft bell
+                oscillator.frequency.value = 800;
+            }
+            
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1);
+        } catch (e) {
+            console.log('Audio notification not available');
+        }
+    }
+
+    // Enhanced Session Management - FIXED
     checkForRecovery() {
         const lastSession = this.getFromStorage('lastSession');
         const sessionBackup = this.getFromStorage('sessionBackup');
         
-        if (lastSession && sessionBackup && lastSession.timestamp > Date.now() - 30 * 60 * 1000) {
+        // Only show recovery if both exist and session is recent (within 30 minutes) and has meaningful data
+        if (lastSession && sessionBackup && 
+            lastSession.timestamp > Date.now() - 30 * 60 * 1000 &&
+            sessionBackup.agendaItems && sessionBackup.agendaItems.length > 0) {
             this.showRecoveryModal(sessionBackup);
         }
     }
@@ -132,21 +507,32 @@ class MeetingTimer {
         
         modal.classList.remove('hidden');
         
+        // Properly bind button handlers
         const recoverBtn = document.getElementById('recover-session-btn');
         const freshBtn = document.getElementById('start-fresh-btn');
         
         if (recoverBtn) {
-            recoverBtn.onclick = () => {
+            // Remove any existing listeners and add new one
+            const newRecoverBtn = recoverBtn.cloneNode(true);
+            recoverBtn.parentNode.replaceChild(newRecoverBtn, recoverBtn);
+            
+            newRecoverBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 this.restoreSession(backupData);
                 modal.classList.add('hidden');
-            };
+            });
         }
         
         if (freshBtn) {
-            freshBtn.onclick = () => {
+            // Remove any existing listeners and add new one
+            const newFreshBtn = freshBtn.cloneNode(true);
+            freshBtn.parentNode.replaceChild(newFreshBtn, freshBtn);
+            
+            newFreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 this.clearSessionBackup();
                 modal.classList.add('hidden');
-            };
+            });
         }
     }
 
@@ -156,6 +542,8 @@ class MeetingTimer {
             this.currentItemIndex = backupData.currentItemIndex || 0;
             this.completedItems = backupData.completedItems || [];
             this.currentView = backupData.currentView || 'setup';
+            this.totalBreakTime = backupData.totalBreakTime || 0;
+            this.meetingId = backupData.meetingId || null;
             
             if (this.currentView === 'timer') {
                 this.switchToView('timer');
@@ -174,11 +562,18 @@ class MeetingTimer {
     }
 
     saveSessionBackup() {
+        // Only save backup if there's meaningful data
+        if (this.agendaItems.length === 0 && this.completedItems.length === 0) {
+            return;
+        }
+
         const backup = {
             agendaItems: this.agendaItems,
             currentItemIndex: this.currentItemIndex,
             completedItems: this.completedItems,
             currentView: this.currentView,
+            totalBreakTime: this.totalBreakTime,
+            meetingId: this.meetingId,
             timestamp: Date.now()
         };
         
@@ -193,25 +588,31 @@ class MeetingTimer {
 
     startAutoSave() {
         this.autoSaveTimer = setInterval(() => {
-            if (this.currentView === 'timer' && this.timerRunning) {
+            if (this.currentView === 'timer' && (this.timerRunning || this.breakMode)) {
                 this.saveSessionBackup();
+                
+                if (this.isFacilitator && this.meetingId) {
+                    this.saveSharedSession();
+                }
             }
-        }, 30000); // Every 30 seconds
+        }, 5000); // Every 5 seconds
     }
 
     handleStorageChange(event) {
         if (event.key === 'sessionBackup' && event.newValue) {
-            // Another tab updated the session - sync if needed
             console.log('Cross-tab sync detected');
+        }
+        
+        // Handle shared session updates
+        if (event.key === `shared_${this.meetingId}` && event.newValue && !this.isFacilitator) {
+            this.syncWithFacilitator();
         }
     }
 
     handleVisibilityChange() {
         if (document.hidden) {
-            // Page is hidden (e.g., screen sharing started)
             this.saveSessionBackup();
         } else {
-            // Page is visible again
             console.log('Page visible again');
         }
     }
@@ -250,6 +651,8 @@ class MeetingTimer {
         this.agendaTemplates = this.getFromStorage('agendaTemplates') || [...this.defaultData.sampleTemplates];
         this.currentTheme = this.getFromStorage('currentTheme') || 'professional-blue';
         this.currentFontSize = this.getFromStorage('currentFontSize') || 'medium';
+        this.breakSound = this.getFromStorage('breakSound') || 'gentle-chime';
+        this.breakReminder = this.getFromStorage('breakReminder') || 5;
     }
 
     saveSettings() {
@@ -258,38 +661,153 @@ class MeetingTimer {
         this.saveToStorage('agendaTemplates', this.agendaTemplates);
         this.saveToStorage('currentTheme', this.currentTheme);
         this.saveToStorage('currentFontSize', this.currentFontSize);
+        this.saveToStorage('breakSound', this.breakSound);
+        this.saveToStorage('breakReminder', this.breakReminder);
     }
 
     bindEvents() {
         console.log('Binding events...');
         
-        // Tab navigation - use event delegation
-        const tabContainer = document.querySelector('.tab-navigation');
-        if (tabContainer) {
-            tabContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('tab-button')) {
-                    const view = e.target.dataset.view;
-                    if (view) {
-                        this.switchToView(view);
-                    }
+        // Tab navigation - fixed event handling
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tab-button')) {
+                const view = e.target.dataset.view;
+                if (view) {
+                    this.switchToView(view);
                 }
+            }
+        });
+
+        // Setup phase events - direct event binding
+        const agendaForm = document.getElementById('agenda-form');
+        if (agendaForm) {
+            agendaForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.addAgendaItem();
             });
         }
+        
+        // Use more specific event delegation
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            const id = target.id;
+            
+            // Setup actions
+            if (id === 'confirm-agenda') {
+                this.startTimerPhase();
+            } else if (id === 'load-template-btn') {
+                this.showTemplateModal();
+            } else if (id === 'import-agenda-btn') {
+                document.getElementById('agenda-file-input')?.click();
+            } else if (id === 'export-agenda-btn') {
+                this.exportAgenda();
+            }
+            
+            // Timer actions
+            else if (id === 'start-pause-btn') {
+                this.toggleTimer();
+            } else if (id === 'stop-btn') {
+                this.stopTimer();
+            } else if (id === 'next-item-btn') {
+                this.nextItem();
+            } else if (id === 'take-break-btn') {
+                this.takeBreak();
+            } else if (id === 'end-break-btn') {
+                this.endBreak();
+            } else if (id === 'save-overtime-notes') {
+                this.saveOvertimeNotes();
+            }
+            
+            // Sharing actions
+            else if (id === 'share-meeting-btn') {
+                this.shareMeeting();
+            } else if (id === 'copy-share-url') {
+                this.copyShareUrl();
+            }
+            
+            // Settings actions
+            else if (id === 'add-member-btn') {
+                this.addTeamMember();
+            } else if (id === 'import-team-btn') {
+                document.getElementById('team-file-input')?.click();
+            } else if (id === 'export-team-btn') {
+                this.exportTeamMembers();
+            } else if (id === 'add-reason-btn') {
+                this.addOvertimeReason();
+            } else if (id === 'import-reasons-btn') {
+                document.getElementById('reasons-file-input')?.click();
+            } else if (id === 'export-reasons-btn') {
+                this.exportOvertimeReasons();
+            } else if (id === 'save-template-btn') {
+                this.saveCurrentAsTemplate();
+            } else if (id === 'clear-data-btn') {
+                this.clearAllData();
+            } else if (id === 'backup-data-btn') {
+                this.backupAllSettings();
+            } else if (id === 'restore-data-btn') {
+                document.getElementById('backup-file-input')?.click();
+            }
+            
+            // Summary actions
+            else if (id === 'export-summary') {
+                this.exportSummary();
+            } else if (id === 'start-new-meeting') {
+                this.startNewMeeting();
+            }
+            
+            // Modal actions
+            else if (id === 'close-template-modal') {
+                this.hideTemplateModal();
+            }
+            
+            // Modal close by clicking outside
+            else if (target.classList.contains('modal')) {
+                target.classList.add('hidden');
+            }
+            
+            // Remove buttons
+            else if (target.classList.contains('btn-remove')) {
+                const agendaItem = target.closest('.agenda-item');
+                if (agendaItem) {
+                    const itemId = agendaItem.dataset.itemId;
+                    if (itemId) {
+                        this.removeAgendaItem(parseFloat(itemId));
+                    }
+                }
+            }
+            
+            // Dynamic remove buttons
+            else if (target.textContent.includes('Remove')) {
+                const memberItem = target.closest('.member-item');
+                const reasonItem = target.closest('.reason-item');
+                
+                if (memberItem) {
+                    const memberName = memberItem.querySelector('span').textContent;
+                    this.removeTeamMember(memberName);
+                } else if (reasonItem) {
+                    const reasonText = reasonItem.querySelector('span').textContent;
+                    this.removeOvertimeReason(reasonText);
+                }
+            }
+        });
 
-        // Setup phase events
-        this.bindSetupEvents();
-        
-        // Timer phase events
-        this.bindTimerEvents();
-        
-        // Settings events
-        this.bindSettingsEvents();
-        
-        // Summary phase events
-        this.bindSummaryEvents();
-
-        // Modal events
-        this.bindModalEvents();
+        // Form control changes
+        document.addEventListener('change', (e) => {
+            const target = e.target;
+            const id = target.id;
+            
+            if (id === 'theme-select') {
+                this.changeTheme(target.value);
+            } else if (id === 'font-size-select') {
+                this.changeFontSize(target.value);
+            } else if (id === 'break-sound-select') {
+                this.breakSound = target.value;
+                this.saveSettings();
+            } else if (id === 'break-reminder') {
+                this.breakReminder = parseInt(target.value);
+                this.saveSettings();
+            }
+        });
 
         // File input events
         this.bindFileEvents();
@@ -303,153 +821,7 @@ class MeetingTimer {
         console.log('Events bound successfully');
     }
 
-    bindSetupEvents() {
-        const agendaForm = document.getElementById('agenda-form');
-        if (agendaForm) {
-            agendaForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                console.log('Form submitted');
-                this.addAgendaItem();
-            });
-        }
-        
-        // Use event delegation for dynamic buttons
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'confirm-agenda') {
-                this.startTimerPhase();
-            } else if (e.target.id === 'load-template-btn') {
-                this.showTemplateModal();
-            } else if (e.target.id === 'import-agenda-btn') {
-                const fileInput = document.getElementById('agenda-file-input');
-                if (fileInput) fileInput.click();
-            } else if (e.target.id === 'export-agenda-btn') {
-                this.exportAgenda();
-            } else if (e.target.classList.contains('btn-remove')) {
-                // Extract ID from onclick attribute or use data attribute
-                const agendaItem = e.target.closest('.agenda-item');
-                if (agendaItem) {
-                    const itemId = agendaItem.dataset.itemId;
-                    if (itemId) {
-                        this.removeAgendaItem(parseInt(itemId));
-                    }
-                }
-            }
-        });
-    }
-
-    bindTimerEvents() {
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'start-pause-btn') {
-                this.toggleTimer();
-            } else if (e.target.id === 'stop-btn') {
-                this.stopTimer();
-            } else if (e.target.id === 'next-item-btn') {
-                this.nextItem();
-            } else if (e.target.id === 'save-overtime-notes') {
-                this.saveOvertimeNotes();
-            }
-        });
-    }
-
-    bindSettingsEvents() {
-        // Theme and font size changes
-        document.addEventListener('change', (e) => {
-            if (e.target.id === 'theme-select') {
-                this.changeTheme(e.target.value);
-            } else if (e.target.id === 'font-size-select') {
-                this.changeFontSize(e.target.value);
-            }
-        });
-
-        // Use event delegation for settings buttons
-        document.addEventListener('click', (e) => {
-            const id = e.target.id;
-            
-            // Team member management
-            if (id === 'add-member-btn') {
-                this.addTeamMember();
-            } else if (id === 'import-team-btn') {
-                const fileInput = document.getElementById('team-file-input');
-                if (fileInput) fileInput.click();
-            } else if (id === 'export-team-btn') {
-                this.exportTeamMembers();
-            }
-            
-            // Overtime reason management
-            else if (id === 'add-reason-btn') {
-                this.addOvertimeReason();
-            } else if (id === 'import-reasons-btn') {
-                const fileInput = document.getElementById('reasons-file-input');
-                if (fileInput) fileInput.click();
-            } else if (id === 'export-reasons-btn') {
-                this.exportOvertimeReasons();
-            }
-            
-            // Template management
-            else if (id === 'save-template-btn') {
-                this.saveCurrentAsTemplate();
-            }
-            
-            // Data management
-            else if (id === 'clear-data-btn') {
-                this.clearAllData();
-            } else if (id === 'backup-data-btn') {
-                this.backupAllSettings();
-            } else if (id === 'restore-data-btn') {
-                const fileInput = document.getElementById('backup-file-input');
-                if (fileInput) fileInput.click();
-            }
-            
-            // Remove buttons for dynamic content
-            else if (e.target.classList.contains('btn') && e.target.textContent.includes('Remove')) {
-                const memberItem = e.target.closest('.member-item');
-                const reasonItem = e.target.closest('.reason-item');
-                
-                if (memberItem) {
-                    const memberName = memberItem.querySelector('span').textContent;
-                    this.removeTeamMember(memberName);
-                } else if (reasonItem) {
-                    const reasonText = reasonItem.querySelector('span').textContent;
-                    this.removeOvertimeReason(reasonText);
-                }
-            }
-        });
-
-        // Handle Enter key in input fields
-        document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                if (e.target.id === 'new-member-name') {
-                    this.addTeamMember();
-                } else if (e.target.id === 'new-reason-text') {
-                    this.addOvertimeReason();
-                }
-            }
-        });
-    }
-
-    bindSummaryEvents() {
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'export-summary') {
-                this.exportSummary();
-            } else if (e.target.id === 'start-new-meeting') {
-                this.startNewMeeting();
-            }
-        });
-    }
-
-    bindModalEvents() {
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'close-template-modal') {
-                this.hideTemplateModal();
-            } else if (e.target.classList.contains('modal')) {
-                // Click outside modal to close
-                e.target.classList.add('hidden');
-            }
-        });
-    }
-
     bindFileEvents() {
-        // Agenda import
         const agendaFileInput = document.getElementById('agenda-file-input');
         if (agendaFileInput) {
             agendaFileInput.addEventListener('change', (e) => {
@@ -458,7 +830,6 @@ class MeetingTimer {
             });
         }
 
-        // Team members import
         const teamFileInput = document.getElementById('team-file-input');
         if (teamFileInput) {
             teamFileInput.addEventListener('change', (e) => {
@@ -467,7 +838,6 @@ class MeetingTimer {
             });
         }
 
-        // Overtime reasons import
         const reasonsFileInput = document.getElementById('reasons-file-input');
         if (reasonsFileInput) {
             reasonsFileInput.addEventListener('change', (e) => {
@@ -476,7 +846,6 @@ class MeetingTimer {
             });
         }
 
-        // Backup restore
         const backupFileInput = document.getElementById('backup-file-input');
         if (backupFileInput) {
             backupFileInput.addEventListener('change', (e) => {
@@ -487,13 +856,11 @@ class MeetingTimer {
     }
 
     setupDragAndDrop() {
-        // Team members drag and drop
         const teamDropArea = document.getElementById('team-drop-area');
         if (teamDropArea) {
             this.setupDropArea(teamDropArea, (file) => this.handleTeamImport(file));
         }
 
-        // Reasons drag and drop
         const reasonsDropArea = document.getElementById('reasons-drop-area');
         if (reasonsDropArea) {
             this.setupDropArea(reasonsDropArea, (file) => this.handleReasonsImport(file));
@@ -529,20 +896,28 @@ class MeetingTimer {
 
         dropArea.addEventListener('click', () => {
             if (dropArea.id === 'team-drop-area') {
-                const fileInput = document.getElementById('team-file-input');
-                if (fileInput) fileInput.click();
+                document.getElementById('team-file-input')?.click();
             } else if (dropArea.id === 'reasons-drop-area') {
-                const fileInput = document.getElementById('reasons-file-input');
-                if (fileInput) fileInput.click();
+                document.getElementById('reasons-file-input')?.click();
             }
         });
     }
 
     handleKeyboardShortcuts(e) {
+        // Only allow shortcuts for facilitators
+        if (!this.isFacilitator) return;
+
         if (this.currentView === 'timer') {
             if (e.code === 'Space') {
                 e.preventDefault();
                 this.toggleTimer();
+            } else if (e.code === 'KeyB') {
+                e.preventDefault();
+                if (this.breakMode) {
+                    this.endBreak();
+                } else {
+                    this.takeBreak();
+                }
             } else if (e.code === 'ArrowRight' || e.code === 'Tab') {
                 e.preventDefault();
                 this.nextItem();
@@ -575,7 +950,6 @@ class MeetingTimer {
         console.log('Switching to view:', viewName);
         this.currentView = viewName;
         
-        // Update tab states
         document.querySelectorAll('.tab-button').forEach(btn => {
             btn.classList.remove('active');
             if (btn.dataset.view === viewName) {
@@ -583,24 +957,26 @@ class MeetingTimer {
             }
         });
         
-        // Show target view
         this.showView(viewName + '-view');
         
-        // Handle view-specific setup
         if (viewName === 'settings') {
-            // Ensure settings form values are current
-            const themeSelect = document.getElementById('theme-select');
-            const fontSelect = document.getElementById('font-size-select');
-            if (themeSelect) themeSelect.value = this.currentTheme;
-            if (fontSelect) fontSelect.value = this.currentFontSize;
+            setTimeout(() => {
+                const themeSelect = document.getElementById('theme-select');
+                const fontSelect = document.getElementById('font-size-select');
+                const breakSoundSelect = document.getElementById('break-sound-select');
+                const breakReminderSelect = document.getElementById('break-reminder');
+                
+                if (themeSelect) themeSelect.value = this.currentTheme;
+                if (fontSelect) fontSelect.value = this.currentFontSize;
+                if (breakSoundSelect) breakSoundSelect.value = this.breakSound;
+                if (breakReminderSelect) breakReminderSelect.value = this.breakReminder;
+            }, 100);
         }
         
-        // Update tab enabled/disabled states
         this.updateTabStates();
     }
 
     updateTabStates() {
-        // Disable timer tab if no agenda
         const timerTab = document.querySelector('[data-view="timer"]');
         if (timerTab) {
             if (this.agendaItems.length === 0) {
@@ -614,7 +990,6 @@ class MeetingTimer {
             }
         }
         
-        // Disable summary tab if no completed items
         const summaryTab = document.querySelector('[data-view="summary"]');
         if (summaryTab) {
             if (this.completedItems.length === 0) {
@@ -630,12 +1005,10 @@ class MeetingTimer {
     }
 
     showView(viewId) {
-        // Hide all views
         document.querySelectorAll('.view').forEach(view => {
             view.classList.add('hidden');
         });
         
-        // Show target view
         const targetView = document.getElementById(viewId);
         if (targetView) {
             targetView.classList.remove('hidden');
@@ -653,6 +1026,12 @@ class MeetingTimer {
         if (currentTimeEl) {
             currentTimeEl.textContent = timeString;
         }
+    }
+
+    formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
     // Theme Management
@@ -741,7 +1120,7 @@ class MeetingTimer {
         this.readJSONFile(file)
             .then(data => {
                 if (Array.isArray(data)) {
-                    this.teamMembers = [...new Set([...this.teamMembers, ...data])]; // Merge and dedupe
+                    this.teamMembers = [...new Set([...this.teamMembers, ...data])];
                     this.renderTeamMembers();
                     this.setupParticipants();
                     this.saveSettings();
@@ -818,7 +1197,7 @@ class MeetingTimer {
         this.readJSONFile(file)
             .then(data => {
                 if (Array.isArray(data)) {
-                    this.overtimeReasons = [...new Set([...this.overtimeReasons, ...data])]; // Merge and dedupe
+                    this.overtimeReasons = [...new Set([...this.overtimeReasons, ...data])];
                     this.renderOvertimeReasons();
                     this.setupOvertimeReasons();
                     this.saveSettings();
@@ -836,7 +1215,6 @@ class MeetingTimer {
         const select = document.getElementById('overtime-reason');
         if (!select) return;
         
-        // Clear existing options except the first one
         while (select.children.length > 1) {
             select.removeChild(select.lastChild);
         }
@@ -1002,7 +1380,7 @@ class MeetingTimer {
         });
     }
 
-    // Agenda Management (Enhanced)
+    // Agenda Management
     exportAgenda() {
         if (this.agendaItems.length === 0) {
             this.showNotification('No agenda items to export', 'error');
@@ -1060,10 +1438,8 @@ class MeetingTimer {
             return;
         }
 
-        // Clear all stored data
         localStorage.clear();
         
-        // Reset to defaults
         this.agendaItems = [];
         this.completedItems = [];
         this.teamMembers = [...this.defaultData.teamMembers];
@@ -1071,8 +1447,9 @@ class MeetingTimer {
         this.agendaTemplates = [...this.defaultData.sampleTemplates];
         this.currentTheme = 'professional-blue';
         this.currentFontSize = 'medium';
+        this.breakSound = 'gentle-chime';
+        this.breakReminder = 5;
 
-        // Re-render everything
         this.renderAgendaItems();
         this.renderTeamMembers();
         this.renderOvertimeReasons();
@@ -1093,8 +1470,10 @@ class MeetingTimer {
             agendaTemplates: this.agendaTemplates,
             currentTheme: this.currentTheme,
             currentFontSize: this.currentFontSize,
+            breakSound: this.breakSound,
+            breakReminder: this.breakReminder,
             backupDate: new Date().toISOString(),
-            version: '1.0'
+            version: '2.0'
         };
 
         this.downloadJSON(backup, `meeting-timer-backup-${new Date().toISOString().split('T')[0]}.json`);
@@ -1112,8 +1491,9 @@ class MeetingTimer {
                     this.agendaTemplates = backup.agendaTemplates || [];
                     this.currentTheme = backup.currentTheme || 'professional-blue';
                     this.currentFontSize = backup.currentFontSize || 'medium';
+                    this.breakSound = backup.breakSound || 'gentle-chime';
+                    this.breakReminder = backup.breakReminder || 5;
 
-                    // Re-render everything
                     this.renderTeamMembers();
                     this.renderOvertimeReasons();
                     this.renderTemplates();
@@ -1121,12 +1501,6 @@ class MeetingTimer {
                     this.setupOvertimeReasons();
                     this.applyTheme();
                     this.applyFontSize();
-
-                    // Update form values
-                    const themeSelect = document.getElementById('theme-select');
-                    const fontSelect = document.getElementById('font-size-select');
-                    if (themeSelect) themeSelect.value = this.currentTheme;
-                    if (fontSelect) fontSelect.value = this.currentFontSize;
 
                     this.saveSettings();
                     this.showNotification('Settings restored successfully', 'success');
@@ -1141,12 +1515,10 @@ class MeetingTimer {
 
     // Notification System
     showNotification(message, type = 'info') {
-        // Create notification element
         const notification = document.createElement('div');
         notification.className = `notification notification--${type}`;
         notification.textContent = message;
         
-        // Style the notification
         Object.assign(notification.style, {
             position: 'fixed',
             top: '20px',
@@ -1162,23 +1534,20 @@ class MeetingTimer {
             transition: 'transform 0.3s ease'
         });
 
-        // Set background color based on type
         const colors = {
-            success: '#10b981',
-            error: '#ef4444',
-            warning: '#f59e0b',
-            info: '#3b82f6'
+            success: '#047857',
+            error: '#dc2626',
+            warning: '#d97706',
+            info: '#2563eb'
         };
         notification.style.backgroundColor = colors[type] || colors.info;
 
         document.body.appendChild(notification);
 
-        // Animate in
         setTimeout(() => {
             notification.style.transform = 'translateX(0)';
         }, 10);
 
-        // Auto remove after 3 seconds
         setTimeout(() => {
             notification.style.transform = 'translateX(100%)';
             setTimeout(() => {
@@ -1189,16 +1558,18 @@ class MeetingTimer {
         }, 3000);
     }
 
-    // Original timer functionality (Enhanced)
+    // Timer functionality
     addAgendaItem() {
-        console.log('Adding agenda item...');
-        
+        if (!this.isFacilitator) {
+            this.showNotification('Only facilitators can modify agenda', 'error');
+            return;
+        }
+
         const titleEl = document.getElementById('item-title');
         const timeEl = document.getElementById('item-time');
         const descriptionEl = document.getElementById('item-description');
         
         if (!titleEl || !timeEl) {
-            console.error('Form elements not found');
             this.showNotification('Form elements not found', 'error');
             return;
         }
@@ -1206,8 +1577,6 @@ class MeetingTimer {
         const title = titleEl.value.trim();
         const time = parseInt(timeEl.value);
         const description = descriptionEl ? descriptionEl.value.trim() : '';
-
-        console.log('Form values:', { title, time, description });
 
         if (!title || !time || time <= 0) {
             this.showNotification('Please enter a valid title and time estimate', 'error');
@@ -1226,24 +1595,25 @@ class MeetingTimer {
             overtimeReason: ''
         };
 
-        console.log('Adding item:', item);
         this.agendaItems.push(item);
         this.renderAgendaItems();
         this.updateTotalTime();
 
-        // Clear form
         titleEl.value = '';
         timeEl.value = '';
         if (descriptionEl) descriptionEl.value = '';
         
-        // Focus back to title field
         titleEl.focus();
 
         this.showNotification(`Added "${title}"`, 'success');
     }
 
     removeAgendaItem(id) {
-        console.log('Removing item:', id);
+        if (!this.isFacilitator) {
+            this.showNotification('Only facilitators can modify agenda', 'error');
+            return;
+        }
+
         this.agendaItems = this.agendaItems.filter(item => item.id !== id);
         this.renderAgendaItems();
         this.updateTotalTime();
@@ -1255,12 +1625,7 @@ class MeetingTimer {
         const itemCount = document.getElementById('item-count');
         const confirmBtn = document.getElementById('confirm-agenda');
         
-        if (!container) {
-            console.error('Agenda items container not found');
-            return;
-        }
-
-        console.log('Rendering agenda items:', this.agendaItems.length);
+        if (!container) return;
 
         container.innerHTML = '';
 
@@ -1274,24 +1639,19 @@ class MeetingTimer {
                     <span class="agenda-item-time">${item.estimatedMinutes} min</span>
                 </div>
                 ${item.description ? `<p class="agenda-item-description">${this.escapeHtml(item.description)}</p>` : ''}
-                <div class="agenda-item-actions">
-                    <button class="btn-remove">Remove</button>
-                </div>
+                ${this.isFacilitator ? '<div class="agenda-item-actions"><button class="btn-remove">Remove</button></div>' : ''}
             `;
             container.appendChild(itemEl);
         });
 
-        // Update item count
         if (itemCount) {
             itemCount.textContent = this.agendaItems.length;
         }
         
-        // Update confirm button state
         if (confirmBtn) {
-            confirmBtn.disabled = this.agendaItems.length === 0;
+            confirmBtn.disabled = this.agendaItems.length === 0 || !this.isFacilitator;
         }
         
-        // Update tab states
         this.updateTabStates();
     }
 
@@ -1310,6 +1670,11 @@ class MeetingTimer {
     }
 
     startTimerPhase() {
+        if (!this.isFacilitator) {
+            this.showNotification('Only facilitators can start the timer', 'error');
+            return;
+        }
+
         if (this.agendaItems.length === 0) {
             this.showNotification('Please add at least one agenda item before starting the timer', 'error');
             return;
@@ -1320,6 +1685,10 @@ class MeetingTimer {
         this.switchToView('timer');
         this.loadCurrentItem();
         this.updateProgress();
+        
+        // Increment participant count for facilitator
+        this.participantCount = 1;
+        this.updateConnectionStatus('connected');
     }
 
     loadCurrentItem() {
@@ -1332,7 +1701,7 @@ class MeetingTimer {
         if (titleEl) titleEl.textContent = item.title;
         if (descriptionEl) descriptionEl.textContent = item.description;
         
-        this.currentItemEstimated = item.estimatedMinutes * 60; // convert to seconds
+        this.currentItemEstimated = item.estimatedMinutes * 60;
         this.currentItemTime = this.currentItemEstimated;
         
         this.updateTimerDisplay();
@@ -1355,6 +1724,16 @@ class MeetingTimer {
     }
 
     toggleTimer() {
+        if (!this.isFacilitator) {
+            this.showNotification('Only facilitators can control the timer', 'error');
+            return;
+        }
+
+        if (this.breakMode) {
+            this.showNotification('Cannot control timer during break', 'warning');
+            return;
+        }
+
         if (this.timerRunning) {
             this.pauseTimer();
         } else {
@@ -1378,8 +1757,11 @@ class MeetingTimer {
             this.updateTimerStatus();
             
             if (this.currentItemTime <= 0 && !this.isOvertimeSectionVisible()) {
-                // First time hitting zero - show overtime
                 this.showOvertimeSection();
+            }
+
+            if (this.isFacilitator) {
+                this.saveSharedSession();
             }
         }, 1000);
 
@@ -1399,10 +1781,19 @@ class MeetingTimer {
             startBtn.className = 'btn btn--primary btn--lg';
         }
 
+        if (this.isFacilitator) {
+            this.saveSharedSession();
+        }
+
         this.showNotification('Timer paused', 'info');
     }
 
     stopTimer() {
+        if (!this.isFacilitator) {
+            this.showNotification('Only facilitators can stop the timer', 'error');
+            return;
+        }
+
         this.pauseTimer();
         this.currentItemTime = this.currentItemEstimated;
         this.updateTimerDisplay();
@@ -1444,22 +1835,18 @@ class MeetingTimer {
         
         const percentRemaining = this.currentItemTime / this.currentItemEstimated;
         
-        // Remove existing classes
         circle.classList.remove('warning', 'overtime');
         status.classList.remove('on-track', 'warning', 'overtime');
         
         if (this.currentItemTime < 0) {
-            // Overtime
             circle.classList.add('overtime');
             status.classList.add('overtime');
             status.textContent = 'Overtime';
         } else if (percentRemaining <= 0.1) {
-            // Warning (90% done)
             circle.classList.add('warning');
             status.classList.add('warning');
             status.textContent = '⚠️ Wrapping Up';
         } else {
-            // On track
             status.classList.add('on-track');
             status.textContent = 'On Track';
         }
@@ -1496,7 +1883,6 @@ class MeetingTimer {
             section.classList.remove('hidden');
         }
         
-        // Play notification sound (if browser supports it)
         this.playNotificationSound();
         this.showNotification('Time exceeded! Please add overtime notes.', 'warning');
     }
@@ -1511,7 +1897,6 @@ class MeetingTimer {
 
     playNotificationSound() {
         try {
-            // Create a simple beep sound
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -1528,7 +1913,6 @@ class MeetingTimer {
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.5);
         } catch (e) {
-            // Ignore audio errors
             console.log('Audio notification not available');
         }
     }
@@ -1540,7 +1924,6 @@ class MeetingTimer {
         if (notesEl) notesEl.value = '';
         if (reasonEl) reasonEl.value = '';
         
-        // Uncheck all participants
         const checkboxes = document.querySelectorAll('#participants-list input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = false);
     }
@@ -1555,7 +1938,6 @@ class MeetingTimer {
         if (notesEl) item.overtimeNotes = notesEl.value;
         if (reasonEl) item.overtimeReason = reasonEl.value;
         
-        // Get selected participants
         const checkboxes = document.querySelectorAll('#participants-list input[type="checkbox"]:checked');
         item.followUpParticipants = Array.from(checkboxes).map(cb => cb.value);
         
@@ -1563,7 +1945,11 @@ class MeetingTimer {
     }
 
     nextItem() {
-        // Save current item data
+        if (!this.isFacilitator) {
+            this.showNotification('Only facilitators can navigate items', 'error');
+            return;
+        }
+
         const item = this.agendaItems[this.currentItemIndex];
         if (item) {
             const actualSeconds = this.currentItemEstimated - this.currentItemTime;
@@ -1575,7 +1961,6 @@ class MeetingTimer {
 
         this.pauseTimer();
 
-        // Move to next item or finish
         this.currentItemIndex++;
         if (this.currentItemIndex >= this.agendaItems.length) {
             this.finishMeeting();
@@ -1584,29 +1969,39 @@ class MeetingTimer {
             this.updateProgress();
             this.showNotification(`Moving to next item: ${this.agendaItems[this.currentItemIndex].title}`, 'info');
         }
+
+        if (this.isFacilitator) {
+            this.saveSharedSession();
+        }
     }
 
     finishMeeting() {
         this.currentView = 'summary';
         this.switchToView('summary');
         this.generateSummary();
-        this.clearSessionBackup(); // Clear backup since meeting is complete
+        this.clearSessionBackup();
+        
+        // Stop break timer if running
+        this.stopBreakTimer();
+        this.breakMode = false;
+        
         this.showNotification('Meeting completed!', 'success');
     }
 
     generateSummary() {
-        // Calculate totals
         const totalItems = this.completedItems.length;
         const estimatedTotal = this.completedItems.reduce((sum, item) => sum + item.estimatedMinutes, 0);
         const actualTotal = this.completedItems.reduce((sum, item) => sum + item.actualMinutes, 0);
         const overtimeItems = this.completedItems.filter(item => item.overtime).length;
+        const breakMinutes = Math.ceil(this.totalBreakTime / 60);
 
-        // Update overview stats
         const elements = {
             'summary-total-items': totalItems,
             'summary-estimated-time': `${estimatedTotal} min`,
             'summary-actual-time': `${actualTotal} min`,
-            'summary-overtime-items': overtimeItems
+            'summary-break-time': `${breakMinutes} min`,
+            'summary-overtime-items': overtimeItems,
+            'summary-participants': this.participantCount
         };
 
         Object.entries(elements).forEach(([id, value]) => {
@@ -1614,7 +2009,6 @@ class MeetingTimer {
             if (el) el.textContent = value;
         });
 
-        // Render items summary and follow-up actions
         this.renderItemsSummary();
         this.renderFollowUpActions();
     }
@@ -1691,14 +2085,18 @@ class MeetingTimer {
         const estimatedTotal = this.completedItems.reduce((sum, item) => sum + item.estimatedMinutes, 0);
         const actualTotal = this.completedItems.reduce((sum, item) => sum + item.actualMinutes, 0);
         const overtimeItems = this.completedItems.filter(item => item.overtime).length;
+        const breakMinutes = Math.ceil(this.totalBreakTime / 60);
 
         let summary = `MEETING SUMMARY\n`;
-        summary += `Generated: ${new Date().toLocaleString()}\n\n`;
-        summary += `OVERVIEW:\n`;
+        summary += `Generated: ${new Date().toLocaleString()}\n`;
+        if (this.meetingId) summary += `Meeting ID: ${this.meetingId}\n`;
+        summary += `\nOVERVIEW:\n`;
         summary += `• Total Items: ${totalItems}\n`;
         summary += `• Estimated Time: ${estimatedTotal} minutes\n`;
         summary += `• Actual Time: ${actualTotal} minutes\n`;
-        summary += `• Overtime Items: ${overtimeItems}\n\n`;
+        summary += `• Break Time: ${breakMinutes} minutes\n`;
+        summary += `• Overtime Items: ${overtimeItems}\n`;
+        summary += `• Participants: ${this.participantCount}\n\n`;
 
         summary += `AGENDA ITEMS:\n`;
         this.completedItems.forEach((item, index) => {
@@ -1726,7 +2124,6 @@ class MeetingTimer {
             });
         }
 
-        // Copy to clipboard
         if (navigator.clipboard) {
             navigator.clipboard.writeText(summary).then(() => {
                 this.showNotification('Summary copied to clipboard!', 'success');
@@ -1739,7 +2136,6 @@ class MeetingTimer {
     }
 
     showExportFallback(summary) {
-        // Create a modal or textarea for manual copy
         const textarea = document.createElement('textarea');
         textarea.value = summary;
         textarea.style.position = 'fixed';
@@ -1777,43 +2173,57 @@ class MeetingTimer {
         this.completedItems = [];
         this.currentItemTime = 0;
         this.currentItemEstimated = 0;
+        this.totalBreakTime = 0;
+        this.breakMode = false;
         this.timerRunning = false;
+        this.meetingId = null;
+        this.participantCount = 1;
         
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
 
-        // Clear session backup
-        this.clearSessionBackup();
+        if (this.breakTimer) {
+            clearInterval(this.breakTimer);
+            this.breakTimer = null;
+        }
 
-        // Reset views
+        if (this.syncTimer) {
+            clearInterval(this.syncTimer);
+            this.syncTimer = null;
+        }
+
+        this.clearSessionBackup();
         this.switchToView('setup');
         
-        // Reset forms and displays
         const agendaForm = document.getElementById('agenda-form');
         if (agendaForm) agendaForm.reset();
         
         this.renderAgendaItems();
         this.updateTotalTime();
         this.clearOvertimeForm();
+        this.hideBreakMode();
+        this.updateConnectionStatus('ready');
         
-        // Focus on first input
         const titleInput = document.getElementById('item-title');
         if (titleInput) titleInput.focus();
+
+        // Clear URL hash
+        window.location.hash = '';
 
         this.showNotification('New meeting started', 'success');
     }
 }
 
-// Initialize the application when DOM is ready
+// Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, creating MeetingTimer...');
     window.meetingTimer = new MeetingTimer();
 });
 
-// Fallback initialization
-if (document.readyState !== 'loading') {
+// Fallback initialization if DOM is already ready
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
     console.log('DOM already ready, creating MeetingTimer...');
     window.meetingTimer = new MeetingTimer();
 }

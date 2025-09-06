@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meeting Timer - Professional Meeting Facilitator</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVldGluZyBUaW1lciIsInNob3J0X25hbWUiOiJUaW1lciIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwic3RhcnRfdXJsIjoiLyIsInRoZW1lX2NvbG9yIjoiIzI1NjNlYiIsImJhY2tncm91bmRfY29sb3IiOiIjZjhmYWZjIiwiZWRnZV9zaWRlX3BhbmVsIjp7InByZWZlcnJlZF93aWR0aCI6Mzc2fX0=">
+    
+    <!-- Custom App Icon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="https://user-gen-media-assets.s3.amazonaws.com/gpt4o_images/d41f3c36-8a53-45a8-b345-80653106cf73.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://user-gen-media-assets.s3.amazonaws.com/gpt4o_images/d41f3c36-8a53-45a8-b345-80653106cf73.png">
+    <link rel="apple-touch-icon" href="https://user-gen-media-assets.s3.amazonaws.com/gpt4o_images/d41f3c36-8a53-45a8-b345-80653106cf73.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWVldGluZyBUaW1lciAtIFByb2Zlc3Npb25hbCBNZWV0aW5nIEZhY2lsaXRhdG9yIiwic2hvcnRfbmFtZSI6Ik1lZXRpbmcgVGltZXIiLCJkZXNjcmlwdGlvbiI6IlByb2Zlc3Npb25hbCBtZWV0aW5nIGZhY2lsaXRhdGlvbiB0b29sIHdpdGggcmVhbC10aW1lIHNoYXJpbmcgYW5kIGJyZWFrIG1hbmFnZW1lbnQiLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsInN0YXJ0X3VybCI6Ii8iLCJ0aGVtZV9jb2xvciI6IiMyNTYzZWIiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI2Y4ZmFmYyIsImljb25zIjpbeyJzcmMiOiJodHRwczovL3VzZXItZ2VuLW1lZGlhLWFzc2V0cy5zMy5hbWF6b25hd3MuY29tL2dwdDRvX2ltYWdlcy9kNDFmM2MzNi04YTUzLTQ1YTgtYjM0NS04MDY1MzEwNmNmNzMucG5nIiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3BuZyIsInB1cnBvc2UiOiJhbnkgbWFza2FibGUifSx7InNyYyI6Imh0dHBzOi8vdXNlci1nZW4tbWVkaWEtYXNzZXRzLnMzLmFtYXpvbmF3cy5jb20vZ3B0NG9faW1hZ2VzL2Q0MWYzYzM2LThhNTMtNDVhOC1iMzQ1LTgwNjUzMTA2Y2Y3My5wbmciLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIiwicHVycG9zZSI6ImFueSBtYXNrYWJsZSJ9XSwiZWRnZV9zaWRlX3BhbmVsIjp7InByZWZlcnJlZF93aWR0aCI6Mzc2fSwiY2F0ZWdvcmllcyI6WyJwcm9kdWN0aXZpdHkiLCJidXNpbmVzcyJdLCJzY3JlZW5zaG90cyI6W10sImxhbmciOiJlbiJ9">
+    
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Meeting Timer">
 </head>
 <body data-theme="professional-blue" data-font-size="medium">
     <div class="app">
@@ -15,6 +27,15 @@
                 <div class="flex items-center justify-between">
                     <h1 class="app-title">Meeting Timer</h1>
                     <div class="header-info">
+                        <div class="header-status">
+                            <div id="participant-count" class="participant-count hidden">
+                                <span id="participant-number">1</span> participants
+                            </div>
+                            <div id="connection-status" class="connection-status">
+                                <span class="status-indicator"></span>
+                                <span id="connection-text">Ready</span>
+                            </div>
+                        </div>
                         <span id="current-time" class="current-time"></span>
                     </div>
                 </div>
@@ -96,6 +117,30 @@
         <div id="timer-view" class="view hidden">
             <div class="container">
                 <div class="timer-container">
+                    <!-- Session Sharing -->
+                    <div id="sharing-section" class="sharing-section">
+                        <div class="card">
+                            <div class="card__body">
+                                <div class="sharing-controls">
+                                    <div class="sharing-info">
+                                        <h4>Share Meeting Session</h4>
+                                        <p class="text-secondary">Share this URL with participants to let them follow along</p>
+                                    </div>
+                                    <div class="sharing-actions">
+                                        <button id="share-meeting-btn" class="btn btn--outline btn--sm">Share Meeting</button>
+                                        <div id="share-url-container" class="share-url-container hidden">
+                                            <input type="text" id="share-url" class="form-control" readonly>
+                                            <button id="copy-share-url" class="btn btn--primary btn--sm">Copy</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="participant-mode-indicator" class="participant-mode-indicator hidden">
+                                    <span class="status--info">👥 Participant View - Following facilitator</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Progress Indicator -->
                     <div class="progress-section">
                         <div class="progress-info">
@@ -107,8 +152,35 @@
                         </div>
                     </div>
 
+                    <!-- Break Mode Indicator -->
+                    <div id="break-mode" class="break-mode hidden">
+                        <div class="card break-card">
+                            <div class="card__body">
+                                <div class="break-header">
+                                    <h3>☕ Meeting Break</h3>
+                                    <div class="break-timer">
+                                        <span id="break-time">05:30</span>
+                                        <span class="break-label">break time</span>
+                                    </div>
+                                </div>
+                                <div class="break-controls">
+                                    <button id="end-break-btn" class="btn btn--primary">Resume Meeting</button>
+                                    <div class="break-settings">
+                                        <label for="break-duration" class="form-label">Target break duration:</label>
+                                        <select id="break-duration" class="form-control">
+                                            <option value="5">5 minutes</option>
+                                            <option value="10">10 minutes</option>
+                                            <option value="15" selected>15 minutes</option>
+                                            <option value="30">30 minutes</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Current Item Display -->
-                    <div class="current-item-card">
+                    <div id="current-item-section" class="current-item-card">
                         <div class="current-item-header">
                             <h2 id="current-item-title">Current Agenda Item</h2>
                             <p id="current-item-description" class="current-item-description"></p>
@@ -123,10 +195,16 @@
                         </div>
 
                         <!-- Timer Controls -->
-                        <div class="timer-controls">
+                        <div id="facilitator-controls" class="timer-controls">
                             <button id="start-pause-btn" class="btn btn--primary btn--lg">Start</button>
-                            <button id="stop-btn" class="btn btn--secondary">Stop</button>
+                            <button id="take-break-btn" class="btn btn--secondary">Take Break</button>
+                            <button id="stop-btn" class="btn btn--outline">Stop</button>
                             <button id="next-item-btn" class="btn btn--outline">Next Item</button>
+                        </div>
+
+                        <!-- Participant Controls (Read-only) -->
+                        <div id="participant-controls" class="participant-controls hidden">
+                            <p class="text-secondary">Following meeting progress...</p>
                         </div>
                     </div>
 
@@ -262,6 +340,31 @@
                         </div>
                     </div>
 
+                    <!-- Break Settings -->
+                    <div class="card settings-section">
+                        <div class="card__body">
+                            <h3>Break Settings</h3>
+                            <div class="settings-grid">
+                                <div class="form-group">
+                                    <label for="break-sound-select" class="form-label">Break Notification Sound</label>
+                                    <select id="break-sound-select" class="form-control">
+                                        <option value="gentle-chime">Gentle Chime</option>
+                                        <option value="soft-bell">Soft Bell</option>
+                                        <option value="none">None</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="break-reminder" class="form-label">Break Reminder (minutes before)</label>
+                                    <select id="break-reminder" class="form-control">
+                                        <option value="2">2 minutes</option>
+                                        <option value="5" selected>5 minutes</option>
+                                        <option value="10">10 minutes</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Data Management -->
                     <div class="card settings-section">
                         <div class="card__body">
@@ -283,7 +386,7 @@
                 <div class="summary-container">
                     <div class="summary-header">
                         <h2>Meeting Summary</h2>
-                        <p class="text-secondary">Review completed agenda items and overtime discussions</p>
+                        <p class="text-secondary">Review completed agenda items and break times</p>
                     </div>
 
                     <!-- Meeting Overview -->
@@ -304,8 +407,16 @@
                                     <span id="summary-actual-time" class="stat-value">0 min</span>
                                 </div>
                                 <div class="stat-item">
+                                    <span class="stat-label">Break Time:</span>
+                                    <span id="summary-break-time" class="stat-value">0 min</span>
+                                </div>
+                                <div class="stat-item">
                                     <span class="stat-label">Overtime Items:</span>
                                     <span id="summary-overtime-items" class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Participants:</span>
+                                    <span id="summary-participants" class="stat-value">1</span>
                                 </div>
                             </div>
                         </div>
