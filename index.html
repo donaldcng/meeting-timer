@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Timer - Professional Meeting Facilitator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="container">
+                <div class="flex items-center justify-between">
+                    <h1 class="app-title">Meeting Timer</h1>
+                    <div class="header-info">
+                        <span id="current-time" class="current-time"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Setup Phase View -->
+        <div id="setup-view" class="view">
+            <div class="container">
+                <div class="setup-container">
+                    <div class="setup-header">
+                        <h2>Setup Meeting Agenda</h2>
+                        <p class="text-secondary">Add agenda items with estimated times to get started</p>
+                    </div>
+
+                    <!-- Add Agenda Item Form -->
+                    <div class="card agenda-form">
+                        <div class="card__body">
+                            <h3>Add Agenda Item</h3>
+                            <form id="agenda-form">
+                                <div class="form-group">
+                                    <label for="item-title" class="form-label">Title</label>
+                                    <input type="text" id="item-title" class="form-control" placeholder="e.g., Project Status Review" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="item-time" class="form-label">Estimated Time (minutes)</label>
+                                    <input type="number" id="item-time" class="form-control" min="1" max="180" placeholder="15" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="item-description" class="form-label">Description</label>
+                                    <textarea id="item-description" class="form-control" rows="3" placeholder="Brief description of what will be discussed..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn--primary">Add Item</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Agenda Items List -->
+                    <div class="agenda-list">
+                        <div class="agenda-summary">
+                            <div class="flex items-center justify-between">
+                                <h3>Agenda Items (<span id="item-count">0</span>)</h3>
+                                <div class="total-time">
+                                    <span class="text-secondary">Total Time: </span>
+                                    <span id="total-time" class="total-time-value">0 min</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="agenda-items" class="agenda-items">
+                            <!-- Agenda items will be inserted here -->
+                        </div>
+
+                        <div class="setup-actions">
+                            <button id="confirm-agenda" class="btn btn--primary btn--lg btn--full-width" disabled>
+                                Start Meeting Timer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timer Phase View -->
+        <div id="timer-view" class="view hidden">
+            <div class="container">
+                <div class="timer-container">
+                    <!-- Progress Indicator -->
+                    <div class="progress-section">
+                        <div class="progress-info">
+                            <span id="progress-text" class="progress-text">Item 1 of 4</span>
+                            <span id="agenda-status" class="agenda-status">On Track</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                    </div>
+
+                    <!-- Current Item Display -->
+                    <div class="current-item-card">
+                        <div class="current-item-header">
+                            <h2 id="current-item-title">Current Agenda Item</h2>
+                            <p id="current-item-description" class="current-item-description"></p>
+                        </div>
+                        
+                        <!-- Main Timer Display -->
+                        <div class="timer-display">
+                            <div id="timer-circle" class="timer-circle">
+                                <div id="timer-text" class="timer-text">15:00</div>
+                                <div id="timer-status" class="timer-status-text"></div>
+                            </div>
+                        </div>
+
+                        <!-- Timer Controls -->
+                        <div class="timer-controls">
+                            <button id="start-pause-btn" class="btn btn--primary btn--lg">Start</button>
+                            <button id="stop-btn" class="btn btn--secondary">Stop</button>
+                            <button id="next-item-btn" class="btn btn--outline">Next Item</button>
+                        </div>
+                    </div>
+
+                    <!-- Overtime Section (Hidden by default) -->
+                    <div id="overtime-section" class="overtime-section hidden">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Overtime Notes</h3>
+                                <div class="form-group">
+                                    <label for="overtime-notes" class="form-label">Discussion Notes</label>
+                                    <textarea id="overtime-notes" class="form-control" rows="3" placeholder="Notes about what needs follow-up discussion..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Participants for Follow-up</label>
+                                    <div id="participants-list" class="participants-checkboxes">
+                                        <!-- Participant checkboxes will be inserted here -->
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="overtime-reason" class="form-label">Reason for Overtime</label>
+                                    <select id="overtime-reason" class="form-control">
+                                        <option value="">Select reason...</option>
+                                        <option value="deeper-discussion">Requires deeper discussion</option>
+                                        <option value="new-issues">New issues discovered</option>
+                                        <option value="stakeholder-input">Need stakeholder input</option>
+                                        <option value="technical">Technical complexities</option>
+                                        <option value="resources">Resource constraints</option>
+                                        <option value="timeline">Timeline concerns</option>
+                                    </select>
+                                </div>
+                                <button id="save-overtime-notes" class="btn btn--primary">Save Notes</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary View -->
+        <div id="summary-view" class="view hidden">
+            <div class="container">
+                <div class="summary-container">
+                    <div class="summary-header">
+                        <h2>Meeting Summary</h2>
+                        <p class="text-secondary">Review completed agenda items and overtime discussions</p>
+                    </div>
+
+                    <!-- Meeting Overview -->
+                    <div class="card meeting-overview">
+                        <div class="card__body">
+                            <h3>Meeting Overview</h3>
+                            <div class="overview-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Total Items:</span>
+                                    <span id="summary-total-items" class="stat-value">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Estimated Time:</span>
+                                    <span id="summary-estimated-time" class="stat-value">0 min</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Actual Time:</span>
+                                    <span id="summary-actual-time" class="stat-value">0 min</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Overtime Items:</span>
+                                    <span id="summary-overtime-items" class="stat-value">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Summary -->
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Agenda Items Summary</h3>
+                            <div id="items-summary" class="items-summary-list">
+                                <!-- Summary items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Follow-up Actions -->
+                    <div id="followup-section" class="card hidden">
+                        <div class="card__body">
+                            <h3>Follow-up Actions</h3>
+                            <div id="followup-list" class="followup-list">
+                                <!-- Follow-up items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="summary-actions">
+                        <button id="export-summary" class="btn btn--primary">Copy Summary to Clipboard</button>
+                        <button id="start-new-meeting" class="btn btn--outline">Start New Meeting</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
