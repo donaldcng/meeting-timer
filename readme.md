@@ -315,9 +315,3 @@ Contributions welcome! Areas for enhancement:
 - Integration with calendar applications
 - Voice commands
 - Enhanced accessibility features
-
----
-
-**Built for meeting facilitators who want to run efficient, productive meetings while keeping everyone engaged and on track.**
-
-*Professional • Accessible • Free • Open Source*
